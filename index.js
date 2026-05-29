@@ -6,6 +6,44 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// CORS headers
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "*");
+  res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  if (req.method === "OPTIONS") return res.sendStatus(200);
+  next();
+});
+
+// OAuth metadata endpoint (requerido por Claude.ai)
+app.get("/.well-known/oauth-authorization-server", (req, res) => {
+  const base = `https://${req.headers.host}`;
+  res.json({
+    issuer: base,
+    authorization_endpoint: `${base}/oauth/authorize`,
+    token_endpoint: `${base}/oauth/token`,
+    response_types_supported: ["code"],
+    grant_types_supported: ["authorization_code"],
+    code_challenge_methods_supported: ["S256"],
+  });
+});
+
+// OAuth authorize
+app.get("/oauth/authorize", (req, res) => {
+  const { redirect_uri, state } = req.query;
+  res.redirect(`${redirect_uri}?code=guesty-mcp-code&state=${state}`);
+});
+
+// OAuth token
+app.post("/oauth/token", (req, res) => {
+  res.json({
+    access_token: "guesty-mcp-token",
+    token_type: "bearer",
+    expires_in: 86400,
+  });
+});
 
 async function getGuestyToken() {
   const res = await axios.post(
@@ -37,57 +75,11 @@ function createServer() {
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: [
-      {
-        name: "get_reservations",
-        description: "Obtiene reservas de Guesty",
-        inputSchema: {
-          type: "object",
-          properties: {
-            limit: { type: "number", description: "Número de resultados (default: 25)" },
-            status: { type: "string", description: "Estado: confirmed, canceled, inquiry" },
-          },
-        },
-      },
-      {
-        name: "get_listings",
-        description: "Obtiene propiedades de Guesty",
-        inputSchema: {
-          type: "object",
-          properties: {
-            limit: { type: "number", description: "Número de resultados" },
-          },
-        },
-      },
-      {
-        name: "get_guests",
-        description: "Obtiene huéspedes de Guesty",
-        inputSchema: {
-          type: "object",
-          properties: {
-            limit: { type: "number", description: "Número de resultados" },
-          },
-        },
-      },
-      {
-        name: "get_conversations",
-        description: "Obtiene conversaciones y mensajes con huéspedes",
-        inputSchema: {
-          type: "object",
-          properties: {
-            limit: { type: "number", description: "Número de resultados" },
-          },
-        },
-      },
-      {
-        name: "get_tasks",
-        description: "Obtiene tareas de limpieza y mantenimiento",
-        inputSchema: {
-          type: "object",
-          properties: {
-            limit: { type: "number", description: "Número de resultados" },
-          },
-        },
-      },
+      { name: "get_reservations", description: "Obtiene reservas de Guesty", inputSchema: { type: "object", properties: { limit: { type: "number" }, status: { type: "string" } } } },
+      { name: "get_listings", description: "Obtiene propiedades de Guesty", inputSchema: { type: "object", properties: { limit: { type: "number" } } } },
+      { name: "get_guests", description: "Obtiene huéspedes de Guesty", inputSchema: { type: "object", properties: { limit: { type: "number" } } } },
+      { name: "get_conversations", description: "Obtiene conversaciones con huéspedes", inputSchema: { type: "object", properties: { limit: { type: "number" } } } },
+      { name: "get_tasks", description: "Obtiene tareas de limpieza y mantenimiento", inputSchema: { type: "object", properties: { limit: { type: "number" } } } },
     ],
   }));
 
@@ -97,30 +89,18 @@ function createServer() {
     try {
       let data;
       switch (name) {
-        case "get_reservations":
-          data = await getGuestyData("reservations", { limit, ...(args?.status && { status: args.status }) });
-          break;
-        case "get_listings":
-          data = await getGuestyData("listings", { limit });
-          break;
-        case "get_guests":
-          data = await getGuestyData("guests", { limit });
-          break;
-        case "get_conversations":
-          data = await getGuestyData("conversations", { limit });
-          break;
-        case "get_tasks":
-          data = await getGuestyData("tasks", { limit });
-          break;
-        default:
-          throw new Error(`Herramienta no encontrada: ${name}`);
+        case "get_reservations": data = await getGuestyData("reservations", { limit, ...(args?.status && { status: args.status }) }); break;
+        case "get_listings": data = await getGuestyData("listings", { limit }); break;
+        case "get_guests": data = await getGuestyData("guests", { limit }); break;
+        case "get_conversations": data = await getGuestyData("conversations", { limit }); break;
+        case "get_tasks": data = await getGuestyData("tasks", { limit }); break;
+        default: throw new Error(`Herramienta no encontrada: ${name}`);
       }
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
     } catch (error) {
       return { content: [{ type: "text", text: `Error: ${error.message}` }], isError: true };
     }
   });
-
   return server;
 }
 
@@ -130,23 +110,16 @@ app.get("/sse", async (req, res) => {
   const transport = new SSEServerTransport("/messages", res);
   transports[transport.sessionId] = transport;
   res.on("close", () => delete transports[transport.sessionId]);
-  const server = createServer();
-  await server.connect(transport);
+  await createServer().connect(transport);
 });
 
 app.post("/messages", async (req, res) => {
-  const sessionId = req.query.sessionId;
-  const transport = transports[sessionId];
-  if (transport) {
-    await transport.handlePostMessage(req, res);
-  } else {
-    res.status(400).json({ error: "Sesión no encontrada" });
-  }
+  const transport = transports[req.query.sessionId];
+  if (transport) await transport.handlePostMessage(req, res);
+  else res.status(400).json({ error: "Sesión no encontrada" });
 });
 
-app.get("/", (req, res) => {
-  res.json({ status: "✅ Guesty MCP Server funcionando" });
-});
+app.get("/", (req, res) => res.json({ status: "✅ Guesty MCP Server funcionando" }));
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => console.log(`✅ MCP Server corriendo en puerto ${PORT}`));
