@@ -8,7 +8,6 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// CORS headers
 app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Headers", "*");
@@ -17,26 +16,33 @@ app.use((req, res, next) => {
   next();
 });
 
-// OAuth metadata endpoint (requerido por Claude.ai)
 app.get("/.well-known/oauth-authorization-server", (req, res) => {
   const base = `https://${req.headers.host}`;
   res.json({
     issuer: base,
     authorization_endpoint: `${base}/oauth/authorize`,
     token_endpoint: `${base}/oauth/token`,
+    registration_endpoint: `${base}/register`,
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code"],
     code_challenge_methods_supported: ["S256"],
   });
 });
 
-// OAuth authorize
+app.post("/register", (req, res) => {
+  res.json({
+    client_id: "guesty-mcp-client",
+    client_secret: "guesty-mcp-secret",
+    redirect_uris: req.body.redirect_uris || [],
+    token_endpoint_auth_method: "client_secret_post",
+  });
+});
+
 app.get("/oauth/authorize", (req, res) => {
   const { redirect_uri, state } = req.query;
   res.redirect(`${redirect_uri}?code=guesty-mcp-code&state=${state}`);
 });
 
-// OAuth token
 app.post("/oauth/token", (req, res) => {
   res.json({
     access_token: "guesty-mcp-token",
