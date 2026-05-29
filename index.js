@@ -26,26 +26,29 @@ app.get("/.well-known/oauth-authorization-server", (req, res) => {
     response_types_supported: ["code"],
     grant_types_supported: ["authorization_code"],
     code_challenge_methods_supported: ["S256"],
+    token_endpoint_auth_methods_supported: ["none"],
   });
 });
 
 app.post("/register", (req, res) => {
-  res.json({
+  res.status(201).json({
     client_id: "guesty-mcp-client",
-    client_secret: "guesty-mcp-secret",
+    token_endpoint_auth_method: "none",
     redirect_uris: req.body.redirect_uris || [],
-    token_endpoint_auth_method: "client_secret_post",
+    grant_types: ["authorization_code"],
+    response_types: ["code"],
   });
 });
 
 app.get("/oauth/authorize", (req, res) => {
-  const { redirect_uri, state } = req.query;
-  res.redirect(`${redirect_uri}?code=guesty-mcp-code&state=${state}`);
+  const { redirect_uri, state, code_challenge } = req.query;
+  const code = Buffer.from(JSON.stringify({ redirect_uri, state, code_challenge })).toString("base64");
+  res.redirect(`${redirect_uri}?code=${encodeURIComponent(code)}&state=${encodeURIComponent(state || "")}`);
 });
 
 app.post("/oauth/token", (req, res) => {
   res.json({
-    access_token: "guesty-mcp-token",
+    access_token: "guesty-token-" + Date.now(),
     token_type: "bearer",
     expires_in: 86400,
   });
