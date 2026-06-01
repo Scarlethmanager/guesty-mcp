@@ -47,7 +47,7 @@ app.get("/oauth/authorize", (req, res) => {
     "<input type='hidden' name='redirect_uri' value='" + ru + "'>",
     "<input type='hidden' name='state' value='" + st + "'>",
     "<input type='hidden' name='code_challenge' value='" + cc + "'>",
-    "<button class='btn' type='submit'>✅ Autorizar acceso</button></form></div></body></html>"].join("");
+    "<button class='btn' type='submit'>Autorizar acceso</button></form></div></body></html>"].join("");
   res.send(html);
 });
 app.get("/oauth/callback", (req, res) => {
@@ -83,99 +83,48 @@ async function guestyPost(endpoint, body = {}) {
 
 function createMcpServer() {
   const server = new Server({ name: "guesty-mcp", version: "2.0.0" }, { capabilities: { tools: {} } });
-
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: [
-      // Reservas
-      { name: "get_reservations", description: "Lista de reservas con filtros opcionales", inputSchema: { type: "object", properties: { limit: { type: "number", description: "Número de resultados (default 25)" }, status: { type: "string", description: "Estado: confirmed, canceled, inquiry, declined" }, from: { type: "string", description: "Fecha inicio YYYY-MM-DD" }, to: { type: "string", description: "Fecha fin YYYY-MM-DD" } } } },
-      { name: "get_reservation_by_id", description: "Detalles completos de una reserva específica", inputSchema: { type: "object", required: ["id"], properties: { id: { type: "string", description: "ID de la reserva" } } } },
-      // Propiedades
+      { name: "get_reservations", description: "Lista de reservas con filtros opcionales", inputSchema: { type: "object", properties: { limit: { type: "number" }, status: { type: "string" }, from: { type: "string" }, to: { type: "string" } } } },
+      { name: "get_reservation_by_id", description: "Detalles completos de una reserva", inputSchema: { type: "object", required: ["id"], properties: { id: { type: "string" } } } },
       { name: "get_listings", description: "Lista de propiedades", inputSchema: { type: "object", properties: { limit: { type: "number" } } } },
-      { name: "get_listing_by_id", description: "Detalles completos de una propiedad específica", inputSchema: { type: "object", required: ["id"], properties: { id: { type: "string", description: "ID de la propiedad" } } } },
-      { name: "get_listing_calendar", description: "Calendario de disponibilidad de una propiedad", inputSchema: { type: "object", required: ["id"], properties: { id: { type: "string", description: "ID de la propiedad" }, from: { type: "string", description: "Fecha inicio YYYY-MM-DD" }, to: { type: "string", description: "Fecha fin YYYY-MM-DD" } } } },
-      // Huéspedes
+      { name: "get_listing_by_id", description: "Detalles de una propiedad", inputSchema: { type: "object", required: ["id"], properties: { id: { type: "string" } } } },
+      { name: "get_listing_calendar", description: "Calendario de disponibilidad", inputSchema: { type: "object", required: ["id"], properties: { id: { type: "string" }, from: { type: "string" }, to: { type: "string" } } } },
       { name: "get_guests", description: "Lista de huéspedes", inputSchema: { type: "object", properties: { limit: { type: "number" } } } },
-      { name: "get_guest_by_id", description: "Perfil completo de un huésped específico", inputSchema: { type: "object", required: ["id"], properties: { id: { type: "string", description: "ID del huésped" } } } },
-      // Conversaciones y reseñas
-      { name: "get_conversations", description: "Conversaciones y mensajes con huéspedes", inputSchema: { type: "object", properties: { limit: { type: "number" } } } },
-      { name: "get_reviews", description: "Reseñas de huéspedes", inputSchema: { type: "object", properties: { limit: { type: "number" }, listingId: { type: "string", description: "Filtrar por propiedad" } } } },
-      // Tareas
-      { name: "get_tasks", description: "Lista de tareas de limpieza y mantenimiento", inputSchema: { type: "object", properties: { limit: { type: "number" } } } },
-      { name: "get_tasks_by_listing", description: "Tareas de una propiedad específica", inputSchema: { type: "object", required: ["listingId"], properties: { listingId: { type: "string", description: "ID de la propiedad" }, limit: { type: "number" } } } },
-      { name: "create_task", description: "Crear una nueva tarea de limpieza o mantenimiento", inputSchema: { type: "object", required: ["title", "listingId"], properties: { title: { type: "string", description: "Título de la tarea" }, listingId: { type: "string", description: "ID de la propiedad" }, description: { type: "string", description: "Descripción detallada" }, dueDate: { type: "string", description: "Fecha límite YYYY-MM-DD" } } } },
-      // Finanzas
-      { name: "get_payments", description: "Pagos recibidos y pendientes", inputSchema: { type: "object", properties: { limit: { type: "number" }, status: { type: "string", description: "Estado del pago" } } } },
+      { name: "get_guest_by_id", description: "Perfil de un huésped", inputSchema: { type: "object", required: ["id"], properties: { id: { type: "string" } } } },
+      { name: "get_conversations", description: "Conversaciones con huéspedes", inputSchema: { type: "object", properties: { limit: { type: "number" } } } },
+      { name: "get_reviews", description: "Reseñas de huéspedes", inputSchema: { type: "object", properties: { limit: { type: "number" }, listingId: { type: "string" } } } },
+      { name: "get_tasks", description: "Tareas de limpieza y mantenimiento", inputSchema: { type: "object", properties: { limit: { type: "number" } } } },
+      { name: "get_tasks_by_listing", description: "Tareas de una propiedad", inputSchema: { type: "object", required: ["listingId"], properties: { listingId: { type: "string" }, limit: { type: "number" } } } },
+      { name: "create_task", description: "Crear tarea de limpieza", inputSchema: { type: "object", required: ["title", "listingId"], properties: { title: { type: "string" }, listingId: { type: "string" }, description: { type: "string" }, dueDate: { type: "string" } } } },
+      { name: "get_payments", description: "Pagos recibidos y pendientes", inputSchema: { type: "object", properties: { limit: { type: "number" }, status: { type: "string" } } } },
       { name: "get_owner_statements", description: "Estados de cuenta de propietarios", inputSchema: { type: "object", properties: { limit: { type: "number" } } } },
-      // Reportes
-      { name: "get_occupancy_report", description: "Reporte de ocupación por fechas", inputSchema: { type: "object", properties: { from: { type: "string", description: "Fecha inicio YYYY-MM-DD" }, to: { type: "string", description: "Fecha fin YYYY-MM-DD" } } } },
-      { name: "get_revenue_report", description: "Reporte de ingresos por fechas", inputSchema: { type: "object", properties: { from: { type: "string", description: "Fecha inicio YYYY-MM-DD" }, to: { type: "string", description: "Fecha fin YYYY-MM-DD" } } } },
+      { name: "get_occupancy_report", description: "Reporte de ocupación", inputSchema: { type: "object", properties: { from: { type: "string" }, to: { type: "string" } } } },
+      { name: "get_revenue_report", description: "Reporte de ingresos", inputSchema: { type: "object", properties: { from: { type: "string" }, to: { type: "string" } } } },
     ],
   }));
-
   server.setRequestHandler(CallToolRequestSchema, async (req) => {
     const { name, arguments: args } = req.params;
     const limit = args?.limit || 25;
     try {
       let data;
-      switch (name) {
-        // Reservas
-        case "get_reservations":
-          data = await guestyGet("reservations", { limit, ...(args?.status && { status: args.status }), ...(args?.from && { checkIn: args.from }), ...(args?.to && { checkOut: args.to }) });
-          break;
-        case "get_reservation_by_id":
-          data = await guestyGet("reservations/" + args.id);
-          break;
-        // Propiedades
-        case "get_listings":
-          data = await guestyGet("listings", { limit });
-          break;
-        case "get_listing_by_id":
-          data = await guestyGet("listings/" + args.id);
-          break;
-        case "get_listing_calendar":
-          data = await guestyGet("listings/" + args.id + "/calendar", { from: args?.from, to: args?.to });
-          break;
-        // Huéspedes
-        case "get_guests":
-          data = await guestyGet("guests", { limit });
-          break;
-        case "get_guest_by_id":
-          data = await guestyGet("guests/" + args.id);
-          break;
-        // Conversaciones y reseñas
-        case "get_conversations":
-          data = await guestyGet("conversations", { limit });
-          break;
-        case "get_reviews":
-          data = await guestyGet("reviews", { limit, ...(args?.listingId && { listingId: args.listingId }) });
-          break;
-        // Tareas
-        case "get_tasks":
-          data = await guestyGet("tasks", { limit });
-          break;
-        case "get_tasks_by_listing":
-          data = await guestyGet("tasks", { limit, listingId: args.listingId });
-          break;
-        case "create_task":
-          data = await guestyPost("tasks", { title: args.title, listingId: args.listingId, description: args?.description, dueDate: args?.dueDate });
-          break;
-        // Finanzas
-        case "get_payments":
-          data = await guestyGet("payments", { limit, ...(args?.status && { status: args.status }) });
-          break;
-        case "get_owner_statements":
-          data = await guestyGet("owner-statements", { limit });
-          break;
-        // Reportes
-        case "get_occupancy_report":
-          data = await guestyGet("reports/occupancy", { from: args?.from, to: args?.to });
-          break;
-        case "get_revenue_report":
-          data = await guestyGet("reports/revenue", { from: args?.from, to: args?.to });
-          break;
-        default:
-          throw new Error("Herramienta no encontrada: " + name);
-      }
+      if (name === "get_reservations") data = await guestyGet("reservations", { limit, ...(args?.status && { status: args.status }), ...(args?.from && { checkIn: args.from }), ...(args?.to && { checkOut: args.to }) });
+      else if (name === "get_reservation_by_id") data = await guestyGet("reservations/" + args.id);
+      else if (name === "get_listings") data = await guestyGet("listings", { limit });
+      else if (name === "get_listing_by_id") data = await guestyGet("listings/" + args.id);
+      else if (name === "get_listing_calendar") data = await guestyGet("listings/" + args.id + "/calendar", { from: args?.from, to: args?.to });
+      else if (name === "get_guests") data = await guestyGet("guests", { limit });
+      else if (name === "get_guest_by_id") data = await guestyGet("guests/" + args.id);
+      else if (name === "get_conversations") data = await guestyGet("conversations", { limit });
+      else if (name === "get_reviews") data = await guestyGet("reviews", { limit, ...(args?.listingId && { listingId: args.listingId }) });
+      else if (name === "get_tasks") data = await guestyGet("tasks", { limit });
+      else if (name === "get_tasks_by_listing") data = await guestyGet("tasks", { limit, listingId: args.listingId });
+      else if (name === "create_task") data = await guestyPost("tasks", { title: args.title, listingId: args.listingId, description: args?.description, dueDate: args?.dueDate });
+      else if (name === "get_payments") data = await guestyGet("payments", { limit, ...(args?.status && { status: args.status }) });
+      else if (name === "get_owner_statements") data = await guestyGet("owner-statements", { limit });
+      else if (name === "get_occupancy_report") data = await guestyGet("reports/occupancy", { from: args?.from, to: args?.to });
+      else if (name === "get_revenue_report") data = await guestyGet("reports/revenue", { from: args?.from, to: args?.to });
+      else throw new Error("Herramienta no encontrada: " + name);
       return { content: [{ type: "text", text: JSON.stringify(data, null, 2) }] };
     } catch (error) {
       return { content: [{ type: "text", text: "Error: " + error.message }], isError: true };
@@ -184,27 +133,24 @@ function createMcpServer() {
   return server;
 }
 
-const sessions = new Map();
 async function handleMcp(req, res) {
-  const sessionId = req.headers["mcp-session-id"] || randomUUID();
-  let transport = sessions.get(sessionId);
-  if (!transport) {
-    transport = new StreamableHTTPServerTransport({ sessionIdGenerator: () => sessionId });
-    sessions.set(sessionId, transport);
-    await createMcpServer().connect(transport);
+  try {
+    const transport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined,
+    });
+    const server = createMcpServer();
+    await server.connect(transport);
+    await transport.handleRequest(req, res, req.body);
+  } catch (err) {
+    console.error("MCP error:", err.message);
+    if (!res.headersSent) res.status(500).json({ error: err.message });
   }
-  await transport.handleRequest(req, res, req.body);
 }
 
 app.post("/sse", handleMcp);
 app.get("/sse", handleMcp);
-app.delete("/sse", (req, res) => {
-  const id = req.headers["mcp-session-id"];
-  if (id) sessions.delete(id);
-  res.sendStatus(200);
-});
-
-app.get("/", (req, res) => res.json({ status: "Guesty MCP Server v2.0 funcionando", tools: 16 }));
+app.delete("/sse", (req, res) => res.sendStatus(200));
+app.get("/", (req, res) => res.json({ status: "Guesty MCP Server v2.0", tools: 16 }));
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => console.log("MCP Server v2.0 corriendo en puerto " + PORT));
